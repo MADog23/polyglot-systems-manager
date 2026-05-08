@@ -1,216 +1,190 @@
 import subprocess
 import time
+import urllib.request
+import yaml
 from typing import List
 
 from .config import OrchestratorConfig, ServiceConfig
 
 
+def load_config_from_yaml(path: str) -> OrchestratorConfig:
+    """
+    Load orchestrator configuration from a YAML file and validate it
+    using Pydantic models.
+    """
+    with open(path, "r") as f:
+        raw = yaml.safe_load(f)
+    return OrchestratorConfig(**raw)
+
+
 class ServiceProcess:
     """
     Wrapper around a subprocess representing a managed service.
-
-    This class abstracts:
-    - starting the service
-    - stopping it gracefully
-    - checking whether it is still running
-
-    Parameters
-    ----------
-    config : ServiceConfig
-        The configuration describing how to launch the service.
     """
 
     def __init__(self, config: ServiceConfig):
         self.config = config
-        self.process: subprocess.Popen | None = None  # Will hold the running subprocess
+        self.process: subprocess.Popen | None = None
+
+        # Restart tracking
+        self.restart_count: int = 0
+        self.last_restart_time: float = 0.0
 
     def start(self) -> None:
-        """
-        Start the service if it is not already running.
-
-        Launches the subprocess using the command defined in the
-        ServiceConfig. If the service is already running, this method
-        does nothing.
-        """
-
-        # If the process exists AND hasn't exited, it's already running.
+        """Start the service if not already running."""
         if self.process is not None and self.process.poll() is None:
             print(f"[{self.config.name}] already running")
             return
 
-        # Launch the service as a subprocess.
-        # Popen returns immediately, allowing the orchestrator to continue running.
         print(f"[{self.config.name}] starting: {' '.join(self.config.command)}")
         self.process = subprocess.Popen(self.config.command)
 
     def stop(self) -> None:
-        """
-        Stop the service gracefully.
-
-        Attempts to terminate the subprocess. If the process does not
-        exit within a timeout, it is force‑killed.
-        """
-
-        # If the process was never started, nothing to stop.
+        """Stop the service gracefully."""
         if self.process is None:
             print(f"[{self.config.name}] not running")
             return
 
         print(f"[{self.config.name}] stopping")
-        self.process.terminate()  # Ask the process to exit cleanly
+        self.process.terminate()
 
         try:
-            # Wait up to 5 seconds for graceful shutdown.
             self.process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            # If the process refuses to exit, force-kill it.
             print(f"[{self.config.name}] did not exit, killing")
             self.process.kill()
 
     def is_running(self) -> bool:
-        """
-        Check whether the service process is still alive.
-
-        Returns
-        -------
-        bool
-            True if the subprocess is running, False otherwise.
-        """
-
-        # poll() returns None when the process is still alive.
+        """Return True if the subprocess is alive."""
         return self.process is not None and self.process.poll() is None
+
+    def is_healthy(self) -> bool:
+        """Perform an HTTP GET health check."""
+        if not self.config.healthcheck_url:
+            return True
+
+        try:
+            with urllib.request.urlopen(self.config.healthcheck_url, timeout=2) as resp:
+                return resp.status == 200
+        except Exception:
+            return False
+
+    def should_restart(self, healthy: bool) -> bool:
+        """
+        Determine whether the service should be restarted based on
+        restart policy and restart limits.
+        """
+        policy = self.config.restart
+
+        if policy == "never":
+            return False
+        if policy == "on-failure" and healthy:
+            return False
+
+        now = time.time()
+
+        # Reset restart window if enough time has passed
+        if now - self.last_restart_time > self.config.restart_window_seconds:
+            self.restart_count = 0
+
+        if self.restart_count >= self.config.max_restarts:
+            print(
+                f"[{self.config.name}] restart limit reached: "
+                f"{self.restart_count}/{self.config.max_restarts}"
+            )
+            return False
+
+        return True
+
+    def record_restart(self) -> None:
+        """Record a restart event."""
+        self.restart_count += 1
+        self.last_restart_time = time.time()
 
 
 class Orchestrator:
     """
     Main orchestrator responsible for managing multiple services.
-
-    Responsibilities
-    ----------------
-    - Start all configured services
-    - Periodically report their status
-    - Shut down all services on exit
     """
 
     def __init__(self, config: OrchestratorConfig):
-        """
-        Initialize the orchestrator with a configuration.
-
-        Parameters
-        ----------
-        config : OrchestratorConfig
-            The configuration describing all services to manage.
-        """
-
         self.config = config
-
-        # Convert each ServiceConfig into a ServiceProcess instance.
-        # This separates configuration from runtime behavior.
         self.services: List[ServiceProcess] = [
             ServiceProcess(svc) for svc in config.services
         ]
 
     def start_all(self) -> None:
-        """
-        Start all services defined in the configuration.
-        """
-
-        # Start each service in sequence.
-        # In the future, this could be parallelized if needed.
+        """Start all configured services."""
         for svc in self.services:
             svc.start()
 
     def stop_all(self) -> None:
-        """
-        Stop all running services gracefully.
-        """
-
-        # Stop services in the order they were started.
-        # If dependencies matter later, we can reverse this order.
+        """Stop all running services."""
         for svc in self.services:
             svc.stop()
 
     def run(self) -> None:
-        """
-        Run the orchestrator's main control loop.
-
-        Behavior
-        --------
-        - Starts all services
-        - Enters a periodic status loop
-        - Handles Ctrl+C (KeyboardInterrupt) for clean shutdown
-        """
-
+        """Run the orchestrator's main control loop."""
         try:
-            # Start all configured services.
             self.start_all()
             print("[orchestrator] all services started")
 
-            # Main control loop:
-            # - Check which services are still running
-            # - Print status every poll interval
             while True:
-                running = [svc for svc in self.services if svc.is_running()]
-                print(f"[orchestrator] {len(running)}/{len(self.services)} services running")
+                running_count = 0
+                healthy_count = 0
 
-                # Sleep between status checks.
+                for svc in self.services:
+                    running = svc.is_running()
+                    healthy = svc.is_healthy() if running else False
+
+                    if running:
+                        running_count += 1
+                    if healthy:
+                        healthy_count += 1
+
+                    # Restart logic
+                    if (not running) or (running and not healthy):
+                        reason = "not running" if not running else "unhealthy"
+
+                        if svc.should_restart(healthy):
+                            print(f"[{svc.config.name}] restarting ({reason})")
+                            print(
+                                f"[{svc.config.name}] restart_triggered "
+                                f"reason={reason} "
+                                f"restart_count={svc.restart_count + 1}/"
+                                f"{svc.config.max_restarts} "
+                                f"policy={svc.config.restart}"
+                            )
+
+                            svc.stop()
+                            svc.start()
+                            svc.record_restart()
+                        else:
+                            print(
+                                f"[{svc.config.name}] restart_skipped "
+                                f"reason={reason} "
+                                f"restart_count={svc.restart_count}/"
+                                f"{svc.config.max_restarts} "
+                                f"policy={svc.config.restart}"
+                            )
+
+                print(
+                    f"[orchestrator] {running_count}/{len(self.services)} running, "
+                    f"{healthy_count} healthy"
+                )
+
                 time.sleep(self.config.poll_interval_seconds)
 
         except KeyboardInterrupt:
-            # Ctrl+C triggers a clean shutdown.
             print("\n[orchestrator] received KeyboardInterrupt, shutting down")
 
         finally:
-            # Ensure all services are stopped even if an error occurs.
             self.stop_all()
 
 
-def build_default_config() -> OrchestratorConfig:
-    """
-    Build a temporary default configuration using placeholder services.
-
-    These placeholder services run simple Python HTTP servers so the
-    orchestrator can demonstrate process management before integrating
-    real C++, Java, and Node.js components.
-
-    Returns
-    -------
-    OrchestratorConfig
-        A configuration object containing three placeholder services.
-    """
-
-    # Temporary placeholder services.
-    # Each one runs a simple Python HTTP server so the orchestrator
-    # can demonstrate process management before real services exist.
-    return OrchestratorConfig(
-        services=[
-            ServiceConfig(
-                name="metrics-collector",
-                command=["python", "-m", "http.server", "8001"],
-            ),
-            ServiceConfig(
-                name="java-service",
-                command=["python", "-m", "http.server", "8002"],
-            ),
-            ServiceConfig(
-                name="node-api",
-                command=["python", "-m", "http.server", "8003"],
-            ),
-        ],
-        poll_interval_seconds=5,
-    )
-
-
 def main() -> None:
-    """
-    Entry point for the orchestrator CLI.
-
-    Loads the default configuration, constructs the orchestrator,
-    and starts the main control loop.
-    """
-
-    # Build the default config and start the orchestrator.
-    config = build_default_config()
+    """Entry point for the orchestrator CLI."""
+    config = load_config_from_yaml("config.yaml")
     orchestrator = Orchestrator(config)
     orchestrator.run()
 

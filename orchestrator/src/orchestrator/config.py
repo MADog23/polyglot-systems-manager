@@ -9,23 +9,32 @@ class ServiceConfig(BaseModel):
     Attributes
     ----------
     name : str
-        Human‑readable name of the service.
+        Human-readable name of the service.
     command : List[str]
         The command used to launch the service as a subprocess.
     healthcheck_url : Optional[str]
-        Optional URL used for future health‑check probing.
+        Optional URL used for HTTP health-check probing.
+    restart : str
+        Restart policy: "always", "on-failure", or "never".
+    max_restarts : int
+        Maximum number of restarts allowed within the restart window.
+    restart_window_seconds : int
+        Time window (in seconds) for counting restarts.
     """
 
-    # Represents a single service the orchestrator will manage.
-    # Each service is launched as a subprocess using the given command.
     name: str
     command: List[str]
-    healthcheck_url: Optional[str] = None  # Reserved for future health checks
+    healthcheck_url: Optional[str] = None  # URL for HTTP health checks
+
+    # Intermediate restart policy configuration
+    restart: str = "always"               # "always", "on-failure", "never"
+    max_restarts: int = 3                 # Max restarts allowed in window
+    restart_window_seconds: int = 60      # Window for counting restarts
 
 
 class OrchestratorConfig(BaseModel):
     """
-    Top‑level configuration for the orchestrator.
+    Top-level configuration for the orchestrator.
 
     Attributes
     ----------
@@ -36,5 +45,4 @@ class OrchestratorConfig(BaseModel):
     """
 
     services: List[ServiceConfig]
-    poll_interval_seconds: int = 5     # controls how often the orchestrator prints status.
-
+    poll_interval_seconds: int = 5

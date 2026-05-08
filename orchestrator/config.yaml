@@ -1,0 +1,23 @@
+poll_interval_seconds: 5
+
+services:
+  - name: metrics-collector
+    command: ["./collectors/cpp/metrics-collector"]
+    healthcheck_url: "http://localhost:9001/health"
+    restart: "always"
+    max_restarts: 3
+    restart_window_seconds: 60
+
+  - name: java-service
+    command: ["python", "-m", "http.server", "8002"]
+    healthcheck_url: "http://localhost:8002"
+    restart: "on-failure"
+    max_restarts: 3
+    restart_window_seconds: 60
+
+  - name: node-api
+    command: ["python", "-m", "http.server", "8003"]
+    healthcheck_url: "http://localhost:8003"
+    restart: "always"
+    max_restarts: 5
+    restart_window_seconds: 120
