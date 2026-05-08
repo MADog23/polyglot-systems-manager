@@ -1,4 +1,6 @@
-Purpose for file organization structure:
+*******************************************
+* Purpose for file organization structure *
+*******************************************
 1. Clear Separation of Responsibilities
 	A. Each top-level folder represents a distinct subsystem, written in a different language, with a different runtime, lifecycle, and purpose.
 		I. Orchestrator - Python Control Plane
