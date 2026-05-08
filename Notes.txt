@@ -1,0 +1,26 @@
+Purpose for file organization structure:
+1. Clear Separation of Responsibilities
+	A. Each top-level folder represents a distinct subsystem, written in a different language, with a different runtime, lifecycle, and purpose.
+		I. Orchestrator - Python Control Plane
+		II. Collectors - C++ metrics collector
+		III. Services - Java background tasks
+		IV. API - Node.js REST API
+		V. Web - HTML5 Dashboard
+2. Monorepo Architecture
+	A. Keeps everything contained within a singular repository instead of requiring sources pulled from multiple repos
+3. Language-Specific Build Environments
+	A. Keeps each language's contents isolated to the specific subsystem
+		I. Minimizes the possibility of accidental file-mismatch errors
+4. Docker-Ready Layout
+	A. Ensures each subsystem is structured to support its own Dockerfile, runtime, and container
+5. Documents and Diagrams have their own home in the root
+	A. Documents and Diagrams can easily be located for easy collection, usage, and distribution
+		I. Architecture diagrams
+		II. API specs
+		III. Data format definitions
+		IV. Sequence diagrams
+6. Centralized testing folder
+	A. Cross-service integration, End-to-End, and Pipeline testing has a centralized location for these tests that is easy to access and locate.
+	B. Each subsystem will have its own testing, but multi-system testing also has a single location for its sources and results
+7. Easy to read structure
+8. Structure illustrates my learning journey
