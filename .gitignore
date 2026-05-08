@@ -1,3 +1,7 @@
+########################
+# Python build files  #
+########################
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -216,3 +220,94 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+########################
+# C++ / C build files  #
+########################
+
+# Compiled object files
+*.o
+*.obj
+*.lo
+*.la
+*.al
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build directories
+build/
+bin/
+cmake-build-*/
+
+########################
+# Java / JVM projects  #
+########################
+
+# Maven / Gradle build output
+target/
+build/
+
+# IDE metadata
+.classpath
+.project
+.settings/
+.idea/
+*.iml
+
+# Compiled classes and archives
+*.class
+*.jar
+*.war
+*.ear
+
+########################
+# Node.js / JavaScript #
+########################
+
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build output
+dist/
+.next/
+
+########################
+# OS-specific files    #
+########################
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
