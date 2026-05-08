@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "wheel"]      # Standard Python build tools
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot-orchestrator"          # Package name
+version = "0.1.0"
+description = "Python orchestrator for the Polyglot Systems Monitor"
+requires-python = ">=3.10"              # Ensures modern Python features
+dependencies = [
+    "pydantic>=2.0.0",                  # Typed config models
+]
+
+[project.scripts]
+psm-orchestrator = "orchestrator.main:main"
+# ↑ Creates the CLI command you now used successfully
