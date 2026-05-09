@@ -3,6 +3,9 @@ poll_interval_seconds: 5
 services:
   - name: metrics-collector
     command: ["../collectors/cpp/build/Debug/metrics-collector.exe"]
+    working_dir: "../collectors/cpp/build/Debug"
+    port: 9001
+    health_endpoint: "/health"
     healthcheck_url: "http://localhost:9001/health"
     restart: always
     restart_delay: 2
