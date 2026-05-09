@@ -4,7 +4,8 @@ import urllib.request
 import yaml
 from typing import List
 import os
-
+from flask import Flask, send_from_directory, jsonify
+import requests
 from .config import OrchestratorConfig, ServiceConfig
 
 # -----------------------------
@@ -228,16 +229,57 @@ class Orchestrator:
 
 
 def main() -> None:
-    """Entry point for the orchestrator CLI."""
+    # -------------------------------
+    # Flask Dashboard Server
+    # -------------------------------
+    app = Flask(__name__, static_folder="dashboard")
+
+    DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "dashboard")
+    COLLECTOR_URL = "http://localhost:9001/metrics"
+
+    @app.route("/dashboard")
+    def dashboard():
+        return send_from_directory(DASHBOARD_DIR, "index.html")
+
+    @app.route("/dashboard/<path:path>")
+    def dashboard_static(path):
+        return send_from_directory(DASHBOARD_DIR, path)
+
+    @app.route("/api/metrics")
+    def api_metrics():
+        try:
+            r = requests.get(COLLECTOR_URL, timeout=1)
+            return jsonify(r.json())
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/")
+    def root():
+        return dashboard()
+
+    # -------------------------------
+    # Start Flask in background thread
+    # -------------------------------
+    import threading
+
+    def run_flask():
+        print("Dashboard available at http://localhost:8000/dashboard")
+        app.run(port=8000, debug=False, use_reloader=False)
+
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+
+    # -------------------------------
+    # Start Orchestrator
+    # -------------------------------
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(base_dir, "..", "..", "config.yaml")
-    config_path = os.path.normpath(config_path)
+    config_path = os.path.normpath(os.path.join(base_dir, "..", "..", "config.yaml"))
 
     print(f"[orchestrator] loading config from: {config_path}")
 
     config = load_config_from_yaml(config_path)
     orchestrator = Orchestrator(config)
-    orchestrator.run()
+    orchestrator.run()   # <-- this now executes!
 
 
 if __name__ == "__main__":

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PSM Metrics Dashboard</title>
+  <link rel="stylesheet" href="/dashboard/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Polyglot Systems Monitor</h1>
+    <p class="subtitle">Live system metrics</p>
+  </header>
+
+  <main>
+    <section class="cards">
+      <div class="card">
+        <h2>CPU Usage</h2>
+        <div class="metric-value" id="cpu-usage">-- %</div>
+      </div>
+      <div class="card">
+        <h2>Memory Usage</h2>
+        <div class="metric-value" id="memory-usage">-- %</div>
+      </div>
+      <div class="card">
+        <h2>Uptime</h2>
+        <div class="metric-value" id="uptime">--</div>
+      </div>
+      <div class="card">
+        <h2>Disk Usage</h2>
+        <div class="metric-value" id="disk-usage">-- %</div>
+      </div>
+    </section>
+
+    <h2>System Metrics</h2>
+    <canvas id="combinedChart"></canvas>
+
+
+
+    <section class="raw-metrics">
+      <h2>Raw Metrics</h2>
+      <pre id="raw-metrics">Waiting for data...</pre>
+    </section>
+  </main>
+
+  <footer>
+    <span>PSM · Live Metrics</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script src="/dashboard/app.js"></script>
+</body>
+</html>

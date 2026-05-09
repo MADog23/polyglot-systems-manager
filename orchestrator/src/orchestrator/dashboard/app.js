@@ -1,4 +1,4 @@
-const METRICS_URL = "/api/metrics";
+const METRICS_URL = "http://localhost:9001/metrics";
 
 const historyLength = 60;
 
@@ -7,59 +7,39 @@ let memHistory = [];
 let diskHistory = [];
 let labelsHistory = [];
 
-// CPU Chart
-const cpuChart = new Chart(document.getElementById('cpuChart'), {
+const combinedChart = new Chart(document.getElementById('combinedChart'), {
     type: 'line',
     data: {
         labels: labelsHistory,
-        datasets: [{
-            label: 'CPU %',
-            data: cpuHistory,
-            borderColor: 'rgb(255, 99, 132)',
-            tension: 0.2
-        }]
+        datasets: [
+            {
+                label: 'CPU %',
+                data: cpuHistory,
+                borderColor: 'rgb(255, 99, 132)',
+                tension: 0.2
+            },
+            {
+                label: 'Memory %',
+                data: memHistory,
+                borderColor: 'rgb(54, 162, 235)',
+                tension: 0.2
+            },
+            {
+                label: 'Disk %',
+                data: diskHistory,
+                borderColor: 'rgb(255, 205, 86)',
+                tension: 0.2
+            }
+        ]
     },
     options: {
         animation: false,
-        scales: { y: { min: 0, max: 100 } }
+        scales: {
+            y: { min: 0, max: 100 }
+        }
     }
 });
 
-// Memory Chart
-const memChart = new Chart(document.getElementById('memChart'), {
-    type: 'line',
-    data: {
-        labels: labelsHistory,
-        datasets: [{
-            label: 'Memory %',
-            data: memHistory,
-            borderColor: 'rgb(54, 162, 235)',
-            tension: 0.2
-        }]
-    },
-    options: {
-        animation: false,
-        scales: { y: { min: 0, max: 100 } }
-    }
-});
-
-// Disk Chart
-const diskChart = new Chart(document.getElementById('diskChart'), {
-    type: 'line',
-    data: {
-        labels: labelsHistory,
-        datasets: [{
-            label: 'Disk %',
-            data: diskHistory,
-            borderColor: 'rgb(255, 205, 86)',
-            tension: 0.2
-        }]
-    },
-    options: {
-        animation: false,
-        scales: { y: { min: 0, max: 100 } }
-    }
-});
 
 
 async function fetchMetrics() {
@@ -85,9 +65,8 @@ async function fetchMetrics() {
     }
 
     // Update charts
-    cpuChart.update();
-    memChart.update();
-    diskChart.update();
+    combinedChart.update();
+
 
     updateCards(data);
     updateRaw(data);
