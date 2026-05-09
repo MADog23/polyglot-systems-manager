@@ -3,8 +3,17 @@ import time
 import urllib.request
 import yaml
 from typing import List
+import os
 
 from .config import OrchestratorConfig, ServiceConfig
+
+# -----------------------------
+# Orchestrator policy constants
+# -----------------------------
+
+WARMUP_GRACE_SECONDS = 5      # time after (re)start before we judge health
+MIN_RESTART_INTERVAL = 5      # minimum seconds between restarts
+MAX_RESTARTS = 5              # safety cap (used only if config doesn't override)
 
 
 def load_config_from_yaml(path: str) -> OrchestratorConfig:
@@ -30,6 +39,9 @@ class ServiceProcess:
         self.restart_count: int = 0
         self.last_restart_time: float = 0.0
 
+        # Warm-up tracking
+        self.start_time: float = 0.0
+
     def start(self) -> None:
         """Start the service if not already running."""
         if self.process is not None and self.process.poll() is None:
@@ -38,6 +50,7 @@ class ServiceProcess:
 
         print(f"[{self.config.name}] starting: {' '.join(self.config.command)}")
         self.process = subprocess.Popen(self.config.command)
+        self.start_time = time.time()   # <-- NEW
 
     def stop(self) -> None:
         """Stop the service gracefully."""
@@ -65,9 +78,21 @@ class ServiceProcess:
 
         try:
             with urllib.request.urlopen(self.config.healthcheck_url, timeout=2) as resp:
-                return resp.status == 200
+                if resp.status != 200:
+                    return False
         except Exception:
             return False
+
+        # Optional: metrics endpoint check (but do NOT fail on zero values)
+        if "metrics" in self.config.name.lower():
+            try:
+                metrics_url = self.config.healthcheck_url.replace("health", "metrics")
+                with urllib.request.urlopen(metrics_url, timeout=2):
+                    pass  # reachable = healthy
+            except Exception:
+                return False
+
+        return True
 
     def should_restart(self, healthy: bool) -> bool:
         """
@@ -135,18 +160,38 @@ class Orchestrator:
 
                 for svc in self.services:
                     running = svc.is_running()
-                    healthy = svc.is_healthy() if running else False
+
+                    # -----------------------------
+                    # Warm-up grace period
+                    # -----------------------------
+                    if running and (time.time() - svc.start_time < WARMUP_GRACE_SECONDS):
+                        healthy = True
+                    else:
+                        healthy = svc.is_healthy() if running else False
 
                     if running:
                         running_count += 1
                     if healthy:
                         healthy_count += 1
 
-                    # Restart logic
+                    # -----------------------------
+                    # Restart logic with backoff
+                    # -----------------------------
                     if (not running) or (running and not healthy):
                         reason = "not running" if not running else "unhealthy"
 
                         if svc.should_restart(healthy):
+                            now = time.time()
+
+                            # Restart backoff
+                            if now - svc.last_restart_time < MIN_RESTART_INTERVAL:
+                                wait = MIN_RESTART_INTERVAL - (now - svc.last_restart_time)
+                                print(
+                                    f"[{svc.config.name}] restart_backoff "
+                                    f"waiting={wait:.1f}s"
+                                )
+                                continue
+
                             print(f"[{svc.config.name}] restarting ({reason})")
                             print(
                                 f"[{svc.config.name}] restart_triggered "
@@ -184,7 +229,13 @@ class Orchestrator:
 
 def main() -> None:
     """Entry point for the orchestrator CLI."""
-    config = load_config_from_yaml("config.yaml")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(base_dir, "..", "..", "config.yaml")
+    config_path = os.path.normpath(config_path)
+
+    print(f"[orchestrator] loading config from: {config_path}")
+
+    config = load_config_from_yaml(config_path)
     orchestrator = Orchestrator(config)
     orchestrator.run()
 

@@ -15,14 +15,17 @@ if (WIN32)
         src/cpu_usage_windows.cpp
         src/memory_usage_windows.cpp
         src/uptime_windows.cpp
+        src/disk_usage_windows.cpp
     )
 else()
     list(APPEND SOURCES
         src/cpu_usage_linux.cpp
         src/memory_usage_linux.cpp
         src/uptime_linux.cpp
+        src/disk_usage_linux.cpp
     )
 endif()
+
 
 add_executable(metrics-collector ${SOURCES})
 
