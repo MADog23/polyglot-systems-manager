@@ -11,13 +11,17 @@ set(SOURCES
 )
 
 if (WIN32)
-    message(STATUS "Building for Windows")
-    list(APPEND SOURCES src/cpu_usage_windows.cpp)
-    list(APPEND SOURCES src/cpu_usage_windows.cpp src/memory_usage_windows.cpp)
+    list(APPEND SOURCES
+        src/cpu_usage_windows.cpp
+        src/memory_usage_windows.cpp
+        src/uptime_windows.cpp
+    )
 else()
-    message(STATUS "Building for Linux")
-    list(APPEND SOURCES src/cpu_usage_linux.cpp)
-    list(APPEND SOURCES src/cpu_usage_linux.cpp src/memory_usage_linux.cpp)
+    list(APPEND SOURCES
+        src/cpu_usage_linux.cpp
+        src/memory_usage_linux.cpp
+        src/uptime_linux.cpp
+    )
 endif()
 
 add_executable(metrics-collector ${SOURCES})
