@@ -1,5 +1,67 @@
 const METRICS_URL = "http://localhost:9001/metrics";
 
+const historyLength = 60;
+
+let cpuHistory = [];
+let memHistory = [];
+let diskHistory = [];
+let labelsHistory = [];
+
+// CPU Chart
+const cpuChart = new Chart(document.getElementById('cpuChart'), {
+    type: 'line',
+    data: {
+        labels: labelsHistory,
+        datasets: [{
+            label: 'CPU %',
+            data: cpuHistory,
+            borderColor: 'rgb(255, 99, 132)',
+            tension: 0.2
+        }]
+    },
+    options: {
+        animation: false,
+        scales: { y: { min: 0, max: 100 } }
+    }
+});
+
+// Memory Chart
+const memChart = new Chart(document.getElementById('memChart'), {
+    type: 'line',
+    data: {
+        labels: labelsHistory,
+        datasets: [{
+            label: 'Memory %',
+            data: memHistory,
+            borderColor: 'rgb(54, 162, 235)',
+            tension: 0.2
+        }]
+    },
+    options: {
+        animation: false,
+        scales: { y: { min: 0, max: 100 } }
+    }
+});
+
+// Disk Chart
+const diskChart = new Chart(document.getElementById('diskChart'), {
+    type: 'line',
+    data: {
+        labels: labelsHistory,
+        datasets: [{
+            label: 'Disk %',
+            data: diskHistory,
+            borderColor: 'rgb(255, 205, 86)',
+            tension: 0.2
+        }]
+    },
+    options: {
+        animation: false,
+        scales: { y: { min: 0, max: 100 } }
+    }
+});
+
+
 async function fetchMetrics() {
   try {
     const res = await fetch(METRICS_URL);
@@ -7,6 +69,29 @@ async function fetchMetrics() {
       throw new Error(`HTTP ${res.status}`);
     }
     const data = await res.json();
+    const timestamp = new Date().toLocaleTimeString();
+
+    labelsHistory.push(timestamp);
+    cpuHistory.push(data.cpu_percent);
+    memHistory.push(data.memory_percent);
+    diskHistory.push(data.disk_percent);
+
+    // Trim history to rolling window
+    if (labelsHistory.length > historyLength) {
+        labelsHistory.shift();
+        cpuHistory.shift();
+        memHistory.shift();
+        diskHistory.shift();
+    }
+
+    // Update charts
+    cpuChart.update();
+    memChart.update();
+    diskChart.update();
+
+    updateCards(data);
+    updateRaw(data);
+
 
     updateCards(data);
     updateRaw(data);
@@ -16,6 +101,8 @@ async function fetchMetrics() {
       "Error fetching metrics: " + err.message;
   }
 }
+
+setInterval(fetchMetrics, 1000);
 
 function updateCards(data) {
   const cpu = document.getElementById("cpu-usage");

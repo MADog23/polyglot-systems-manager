@@ -31,6 +31,16 @@
       </div>
     </section>
 
+    <h2>CPU Usage</h2>
+    <canvas id="cpuChart"></canvas>
+
+    <h2>Memory Usage</h2>
+    <canvas id="memChart"></canvas>
+
+    <h2>Disk Usage</h2>
+    <canvas id="diskChart"></canvas>
+
+
     <section class="raw-metrics">
       <h2>Raw Metrics</h2>
       <pre id="raw-metrics">Waiting for data...</pre>
@@ -40,6 +50,8 @@
   <footer>
     <span>PSM · Live Metrics</span>
   </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script src="app.js"></script>
 </body>
