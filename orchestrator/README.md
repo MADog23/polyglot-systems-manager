@@ -1,164 +1,142 @@
 # Polyglot Orchestrator
 
-## Overview
-The **Polyglot Orchestrator** is the Python-based control plane for the **Polyglot Systems Monitor (PSM)**.  
-Its job is to start, monitor, and gracefully shut down multiple heterogeneous services written in different languages (C++, Java, Node.js, Python).
+The **Polyglot Orchestrator** is the Python-based control plane for the **Polyglot Systems Manager (PSM)**.  
+It is responsible for launching, monitoring, and managing multiple heterogeneous services written in different languages (C++, Java, Node.js, Python), while also serving the system dashboard UI.
 
-This orchestrator acts as the “systemd/Kubernetes-lite” for the entire project.
+This orchestrator acts as a lightweight, educational version of a distributed systems control plane — similar in spirit to systemd, supervisord, or Kubernetes components.
 
 ---
 
 ## Features
-- Launches multiple services as subprocesses  
-- Monitors service liveness  
-- Gracefully terminates all services on shutdown  
-- Typed configuration using Pydantic  
-- CLI entrypoint: `psm-orchestrator`  
-- Extensible architecture for:
-  - health checks  
-  - restart policies  
-  - log capture  
-  - YAML/JSON config files  
+
+- Launches and supervises multiple services as subprocesses  
+- Health checks and restart policies  
+- Centralized configuration via `config.yaml`  
+- Serves the dashboard UI (`/dashboard`)  
+- Proxies metrics from the C++ collector  
+- Exposes service health via `/api/services`  
+- Clean modular architecture (`core/` + `server/`)  
+- CLI entrypoint: `psm-orchestrator`
 
 ---
 
 ## Architecture
 
-### Components
-| Component | Description |
-|----------|-------------|
-| ServiceConfig | Defines how a service should be launched |
-| ServiceProcess | Wraps a subprocess and manages its lifecycle |
-| Orchestrator | Starts, monitors, and stops all services |
-| CLI Entrypoint | Runs the orchestrator via `psm-orchestrator` |
-
-### Runtime Flow
-1. Load configuration  
-2. Convert each service into a `ServiceProcess`  
-3. Start all services  
-4. Enter monitoring loop  
-5. On Ctrl+C → gracefully shut down all services  
-
----
-
-## Directory Structure
+### Directory Structure
 
 ```
 orchestrator/
-│── pyproject.toml
-│── README.md
-│── src/
-│   └── orchestrator/
-│       ├── __init__.py
-│       ├── config.py
-│       └── main.py
-│── tests/
+│
+├── main.py                 # CLI entrypoint
+├── pyproject.toml          # Python package definition
+│
+├── core/                   # Orchestrator control plane
+│   ├── orchestrator.py     # Main orchestrator loop
+│   ├── service_process.py  # Subprocess wrapper
+│   ├── config.py           # YAML loader + config models
+│   └── models.py           # Pydantic models
+│
+└── server/                 # Dashboard + API server
+    ├── app.py              # Flask app factory
+    └── routes.py           # API endpoints
 ```
+
+The orchestrator is intentionally split into two subsystems:
+
+- `core/` — pure orchestration logic  
+- `server/` — Flask dashboard + API  
+
+This keeps responsibilities clean and maintainable.
 
 ---
 
-## Installation
+## How It Works
 
-### 1. Create and activate a virtual environment
+### 1. Configuration
+
+The orchestrator loads system configuration from:
+
 ```
-py -3.12 -m venv .venv
-.venv\Scripts\activate
+config.yaml
 ```
 
-### 2. Install the orchestrator in editable mode
+This file defines:
+
+- services to launch  
+- commands to run  
+- health check URLs  
+- restart policies  
+
+### 2. Service Management
+
+Each service is represented by a `ServiceProcess` object that handles:
+
+- starting the process  
+- checking if it is alive  
+- performing health checks  
+- restarting if needed  
+
+### 3. Dashboard Server
+
+The Flask server:
+
+- serves the dashboard UI from `/web`  
+- proxies metrics from the C++ collector  
+- exposes service health via `/api/services`  
+
+The dashboard is available at:
+
 ```
-pip install -e .
+http://localhost:8000/dashboard
 ```
 
 ---
 
 ## Running the Orchestrator
 
-### Option 1 — CLI entrypoint
+### 1. Install dependencies
+
+From the `orchestrator/` directory:
+
+```
+pip install -e .
+```
+
+### 2. Run the orchestrator
+
 ```
 psm-orchestrator
 ```
 
-### Option 2 — Python module
-```
-python -m orchestrator.main
-```
-
-You should see output like:
+You should see:
 
 ```
-[metrics-collector] starting...
-[java-service] starting...
-[node-api] starting...
-[orchestrator] 3/3 services running
+[orchestrator] loading config from: ../config.yaml
+[orchestrator] dashboard available at http://localhost:8000/dashboard
+[orchestrator] starting services...
 ```
-
-Press **Ctrl+C** to stop everything cleanly.
 
 ---
 
-## Configuration
+## Development Notes
 
-### Default Configuration
-The orchestrator currently uses a built‑in default config with placeholder services:
-
-```python
-ServiceConfig(
-    name="metrics-collector",
-    command=["python", "-m", "http.server", "8001"],
-)
-```
-
-These will be replaced with:
-
-- C++ metrics collector binary  
-- Java background service  
-- Node.js API gateway  
-
-### Future: External Config File
-Support for `config.yaml` and `config.json` is planned.
-
----
-
-## Code Documentation
-
-The orchestrator includes:
-
-- PEP‑257 docstrings for every class and method  
-- Inline comments explaining tricky logic  
-- Clear separation between configuration and runtime behavior  
-
-This makes the codebase easy to understand and extend.
+- The orchestrator should **not** contain dashboard files — these live in `/web`.  
+- Build artifacts (`__pycache__`, `*.egg-info`) should not be committed.  
+- The orchestrator is designed to be language‑agnostic — any service that can be started via a command can be managed.  
+- The orchestrator runs Flask in a background thread and the control loop in the main thread.
 
 ---
 
 ## Roadmap
 
-- Add health checks  
-- Add logging and stdout capture  
-- Add restart policies  
-- Move service definitions into config.yaml  
-- Integrate the real C++ collector  
-- Integrate the Java service  
-- Integrate the Node API  
-
----
-
-## Contributing
-
-To run tests:
-
-```
-pytest
-```
-
-To add a new service:
-
-1. Add a new `ServiceConfig` entry  
-2. (Future) Add it to `config.yaml`  
-3. Restart the orchestrator  
+- Log streaming endpoint  
+- Multi‑collector support  
+- Distributed worker queue  
+- Additional dashboard pages  
+- WebSocket event streaming  
 
 ---
 
 ## License
+
 MIT License

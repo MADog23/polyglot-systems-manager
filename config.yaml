@@ -1,0 +1,26 @@
+# Global configuration for the Polyglot Systems Manager orchestrator.
+# This file defines all services the orchestrator will launch and supervise.
+
+healthcheck_interval: 2.0
+
+services:
+  - name: cpp-metrics-collector
+    command:
+      - "../collectors/cpp/build/Debug/metrics-collector.exe"
+    healthcheck_url: "http://localhost:9001/health"
+    restart: "always"
+
+  - name: java-worker-service
+    command:
+      - "java"
+      - "-jar"
+      - "../services/java-service/target/java-service.jar"
+    healthcheck_url: "http://localhost:9002/health"
+    restart: "on-failure"
+
+  - name: node-api
+    command:
+      - "node"
+      - "../api/node-api/src/index.js"
+    healthcheck_url: "http://localhost:9003/health"
+    restart: "always"

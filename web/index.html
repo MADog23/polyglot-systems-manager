@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Polyglot Systems Manager Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Polyglot Systems Manager</h1>
+        <h2>Live System Metrics & Service Status</h2>
+    </header>
+
+    <main>
+        <section id="metrics-section">
+            <h3>System Metrics</h3>
+            <div class="metric">
+                <label>CPU Usage:</label>
+                <span id="cpu-value">--%</span>
+            </div>
+            <div class="metric">
+                <label>Memory Usage:</label>
+                <span id="memory-value">--%</span>
+            </div>
+            <div class="metric">
+                <label>Disk Usage:</label>
+                <span id="disk-value">--%</span>
+            </div>
+            <div class="metric">
+                <label>Uptime:</label>
+                <span id="uptime-value">--</span>
+            </div>
+        </section>
+
+        <section id="services-section">
+            <h3>Managed Services</h3>
+            <table id="services-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Running</th>
+                        <th>Healthy</th>
+                        <th>Restarts</th>
+                    </tr>
+                </thead>
+                <tbody id="services-body">
+                    <!-- Filled dynamically -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="/js/app.js" defer></script>
+</body>
+</html>
